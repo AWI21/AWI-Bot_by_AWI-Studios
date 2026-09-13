@@ -1,7 +1,8 @@
+const { Events } = require('discord.js');
 const chalk = require('chalk');
 
 module.exports = {
-  name: 'clientReady',
+  name: Events.ClientReady,
   once: true,
   execute(client) {
     console.log(chalk.magenta(`\nBot is online as ${client.user.tag}`));

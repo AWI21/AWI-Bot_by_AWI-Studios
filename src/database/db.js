@@ -69,6 +69,19 @@ async function deleteConfig(guildId, key) {
 }
 
 // ── Users / XP ───────────────────────────────────────────────────────────────
+async function bulkUpsertUserStats(statsArray) {
+  if (!statsArray || statsArray.length === 0) return;
+  for (const stat of statsArray) {
+    await db.execute({
+      sql: `INSERT INTO user_stats (guild_id, user_id, xp, level, messages)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id, user_id)
+            DO UPDATE SET xp = excluded.xp, level = excluded.level, messages = excluded.messages`,
+      args: [stat.guildId, stat.userId, stat.xp, stat.level, stat.messages]
+    });
+  }
+}
+
 async function getUser(userId, guildId) {
   const r = await db.execute({ sql: 'SELECT * FROM users WHERE user_id = ? AND guild_id = ?', args: [userId, guildId] });
   return first(r);
@@ -195,4 +208,5 @@ module.exports = {
   addAutoRole, removeAutoRole, getAutoRoles,
   addBannedWord, removeBannedWord, getBannedWords,
   addCommandChannel, removeCommandChannel, getCommandChannels,
+  bulkUpsertUserStats,
 };
