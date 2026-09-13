@@ -1,3 +1,4 @@
+const { PermissionFlagsBits } = require('discord.js');
 const { getBannedWords, getConfig } = require('../database/db');
 
 function normalizeText(text) {
@@ -9,7 +10,7 @@ function normalizeText(text) {
 }
 
 async function handleAutomod(message, client) {
-  if (!message.guild || message.author.bot) return;
+  if (!message.guild || message.author.bot) return false;
 
   const [bannedWords, gifRoleId, blockLinks] = await Promise.all([
     getBannedWords(message.guild.id),
@@ -29,7 +30,9 @@ async function handleAutomod(message, client) {
       const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
 
       if (cleanContent.includes(lowerWord) || strippedContent.includes(strippedWord) || regex.test(cleanContent)) {
-        await message.delete().catch(() => {});
+        if (message.deletable) {
+          await message.delete().catch(err => console.error("AutoMod Delete Error (Missing Manage Messages Perms?):", err));
+        }
         const warningMsg = await message.channel.send({
           content: `⚠️ ${message.author}, your message contained a banned word.`
         }).catch(() => {});
@@ -38,6 +41,9 @@ async function handleAutomod(message, client) {
       }
     }
   }
+
+  const isAdmin = message.member?.permissions.has(PermissionFlagsBits.Administrator) || message.member?.permissions.has(8n);
+  if (isAdmin) return false;
 
   const urlRegex = /(https?:\/\/[^\s]+)/gi;
   const links = rawContent.match(urlRegex);
@@ -53,9 +59,11 @@ async function handleAutomod(message, client) {
         const isGif = gifDomains.some(domain => lowerLink.includes(domain)) || lowerLink.endsWith('.gif') || lowerLink.includes('.gif?');
 
         if (!isGif) {
-          await message.delete().catch(() => {});
+          if (message.deletable) {
+            await message.delete().catch(() => {});
+          }
           const warningMsg = await message.channel.send({
-            content: `⚠️ ${message.author}, you can only post GIF links (Tenor, Klipy, Giphy)! Non-GIF links (YouTube, TikTok, etc.) are removed.`
+            content: `⚠️ ${message.author}, you can only post GIF links (Tenor, Giphy, Klipy)! Non-GIF links are removed.`
           }).catch(() => {});
           setTimeout(() => warningMsg?.delete().catch(() => {}), 5000);
           return true;
@@ -65,7 +73,9 @@ async function handleAutomod(message, client) {
     }
 
     if (blockLinks === 'true' || blockLinks === '1') {
-      await message.delete().catch(() => {});
+      if (message.deletable) {
+        await message.delete().catch(() => {});
+      }
       const warningMsg = await message.channel.send({
         content: `⚠️ ${message.author}, posting links is disabled in this server.`
       }).catch(() => {});

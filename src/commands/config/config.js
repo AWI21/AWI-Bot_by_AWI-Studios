@@ -22,7 +22,7 @@ module.exports = {
       'ticket-category': 'ticket_category',
     };
     const roleConfigs = {
-      'birthday-role': 'birthday_role', 'mod-role': 'mod_role',
+      'gif-role': 'gif_role', 'birthday-role': 'birthday_role', 'mod-role': 'mod_role',
       'trusted-fan-role': 'trusted_fan_role', 'yt-ping-role': 'yt_ping_role',
       'twitch-ping-role': 'twitch_ping_role',
       'level-role-5': 'level_role_5', 'level-role-10': 'level_role_10',
@@ -158,7 +158,7 @@ module.exports = {
           'ticket-category': 'ticket_category'
         },
         '🎖️ Roles': {
-          'mod-role': 'mod_role', 'birthday-role': 'birthday_role', 'trusted-fan-role': 'trusted_fan_role',
+          'gif-role': 'gif_role', 'mod-role': 'mod_role', 'birthday-role': 'birthday_role', 'trusted-fan-role': 'trusted_fan_role',
           'yt-ping-role': 'yt_ping_role', 'twitch-ping-role': 'twitch_ping_role',
           'level-role-5': 'level_role_5', 'level-role-10': 'level_role_10',
           'level-role-20': 'level_role_20', 'level-role-30': 'level_role_30',
@@ -231,7 +231,7 @@ function showHelp(message, prefix) {
   const embed = new EmbedBuilder().setColor(0x7c3aed).setTitle('⚙️ Config Commands')
       .addFields(
           { name: '📢 Channels', value: `\`${prefix}config log-channel\` \`${prefix}config level-channel\`\n\`${prefix}config birthday-channel\` \`${prefix}config welcome-channel\`\n\`${prefix}config yt-channel-notify\` \`${prefix}config twitch-channel\`\n\`${prefix}config ticket-category\`` },
-          { name: '🎖️ Roles', value: `\`${prefix}config birthday-role\` \`${prefix}config mod-role\`\n\`${prefix}config trusted-fan-role\` \`${prefix}config level-role-5\` (also 10,20,30,40,50,100)\n\`${prefix}config yt-ping-role\` \`${prefix}config twitch-ping-role\`` },
+          { name: '🎖️ Roles', value: `\`${prefix}config gif-role @role\` \`${prefix}config birthday-role\`\n\`${prefix}config mod-role\` \`${prefix}config trusted-fan-role\`\n\`${prefix}config level-role-5\` (also 10,20,30,40,50,100)\n\`${prefix}config yt-ping-role\` \`${prefix}config twitch-ping-role\`` },
           { name: '🔧 Values', value: `\`${prefix}config prefix <symbol>\`\n\`${prefix}config yt-channel-id <id>\` \`${prefix}config twitch-username <name>\`\n\`${prefix}config trusted-fan-threshold <number>\`` },
           { name: '🚫 AutoMod', value: `\`${prefix}config bannedword add/remove/list <word>\`\n\`${prefix}config allowlinks add/remove/list #channel\`` },
           { name: '💬 Command Channels', value: `\`${prefix}config cmdchannel add/remove/list #channel\`` },
