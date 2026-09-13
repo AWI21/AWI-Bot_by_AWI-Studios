@@ -18,6 +18,51 @@ async function handleAutomod(message, client) {
     getConfig(message.guild.id, 'block_links')
   ]);
 
+const GIF_REGEX = /(https?:\/\/)?(www\.)?(tenor\.com\/view|giphy\.com\/media|\S+\.gif)(\/\S*)?/i;
+const LINK_REGEX = /(https?:\/\/[^\s]+)/g;
+
+async function handleAutomod(message, client) {
+  const [gifRole, modRole, allowedLinkChannels] = await Promise.all([
+    getConfig(message.guild.id, 'gif_role'),
+    getConfig(message.guild.id, 'mod_role'),
+    getAllowedLinkChannels(message.guild.id)
+  ]);
+
+  const isMod = message.member.permissions.has(8n) || (modRole && message.member.roles.cache.has(modRole));
+  const hasWolfArmy = gifRole && message.member.roles.cache.has(gifRole);
+  const isAllowedChannel = allowedLinkChannels.includes(message.channel.id);
+
+  const hasAttachments = message.attachments.size > 0;
+  const isGif = GIF_REGEX.test(message.content);
+  const isLink = LINK_REGEX.test(message.content) && !isGif;
+
+  // 1. Files, Images & GIFs (Allowed anywhere IF user has Wolf Army or Mod)
+  if (hasAttachments || isGif) {
+    if (!hasWolfArmy && !isMod) {
+      await message.delete().catch(() => {});
+      const warning = await message.channel.send(`${message.author}, you need the <@&${gifRole}> role to attach files, images, or GIFs!`);
+      setTimeout(() => warning.delete().catch(() => {}), 5000);
+      return;
+    }
+  }
+
+  if (isLink) {
+    if (!hasWolfArmy && !isMod) {
+      await message.delete().catch(() => {});
+      const warning = await message.channel.send(`${message.author}, you need the <@&${gifRole}> role to post links!`);
+      setTimeout(() => warning.delete().catch(() => {}), 5000);
+      return;
+    }
+
+    if (!isAllowedChannel && !isMod) {
+      await message.delete().catch(() => {});
+      const warning = await message.channel.send(`${message.author}, links can only be posted in allowed promo channels!`);
+      setTimeout(() => warning.delete().catch(() => {}), 5000);
+      return;
+    }
+  }
+}
+
   const rawContent = message.content;
   const cleanContent = rawContent.toLowerCase();
   const strippedContent = normalizeText(rawContent);

@@ -15,8 +15,21 @@ module.exports = {
   async execute(message, client) {
     if (message.author.bot || !message.guild) return;
 
+    // 1. Fetch XP & Mod exclusions early
+    const [noXpRole, modRoleId] = await Promise.all([
+      getConfig(message.guild.id, 'no_xp_role'),
+      getConfig(message.guild.id, 'mod_role')
+    ]);
+
+    const hasNoXpRole = noXpRole && message.member.roles.cache.has(noXpRole);
+
+    // 2. Automod Execution (Handles GIFs, Files, Images & Links)
     handleAutomod(message, client).catch(err => console.error("Automod Error:", err));
-    handleXP(message, client).catch(err => console.error("XP Error:", err));
+
+    // 3. Passive XP Execution (Skipped if user has no_xp_role)
+    if (!hasNoXpRole) {
+      handleXP(message, client).catch(err => console.error("XP Error:", err));
+    }
 
     const prefix = await getConfig(message.guild.id, 'prefix') || process.env.DEFAULT_PREFIX || '!';
     if (!message.content.startsWith(prefix)) return;
@@ -25,11 +38,9 @@ module.exports = {
     const commandName = args.shift().toLowerCase();
     const command = client.commands.get(commandName);
 
+    // Standard Command Handling
     if (command) {
-      const [allowedChannels, modRoleId] = await Promise.all([
-        getCommandChannels(message.guild.id),
-        getConfig(message.guild.id, 'mod_role')
-      ]);
+      const allowedChannels = await getCommandChannels(message.guild.id);
 
       if (allowedChannels.length > 0 && !allowedChannels.includes(message.channel.id)) {
         const isMod = message.member.roles.cache.has(modRoleId) || message.member.permissions.has(8n);
@@ -64,9 +75,9 @@ module.exports = {
       return;
     }
 
+    // Custom Command Handling
     const custom = await getCustomCommand(message.guild.id, commandName);
     if (custom) {
-
       if (custom.cooldown && custom.cooldown > 0) {
         if (!client.customCmdCooldowns) client.customCmdCooldowns = new Map();
 
@@ -122,7 +133,6 @@ module.exports = {
       }
 
       let savedResponse = custom.response;
-
       const target = message.mentions.users.first();
       if (savedResponse.includes('{target}') && !target) {
         return safeReply(message, {
@@ -166,6 +176,7 @@ module.exports = {
         }
       }
 
+      // Handle custom command XP rewards (Skipped if no_xp_role is present)
       let totalXpGained = 0;
       chosenResponse = chosenResponse.replace(/\{give_xp:(\d+)(?:-(\d+))?\}/gi, (match, minStr, maxStr) => {
         const min = parseInt(minStr, 10);
@@ -175,7 +186,7 @@ module.exports = {
         return `**+${xpGained} XP**`;
       });
 
-      if (totalXpGained > 0) {
+      if (totalXpGained > 0 && !hasNoXpRole) {
         await addXP(message.author.id, message.guild.id, totalXpGained).catch(err => console.error('XP Add Error:', err));
       }
 
