@@ -14,7 +14,6 @@ async function initDatabase() {
 
   db = createClient({ url, authToken });
 
-  // Refined schema for maximum Turso compatibility
   const tables = [
     `CREATE TABLE IF NOT EXISTS guild_config (guild_id TEXT, key TEXT, value TEXT, PRIMARY KEY (guild_id, key))`,
     `CREATE TABLE IF NOT EXISTS users (user_id TEXT, guild_id TEXT, xp INTEGER DEFAULT 0, level INTEGER DEFAULT 0, messages INTEGER DEFAULT 0, PRIMARY KEY (user_id, guild_id))`,
@@ -24,7 +23,6 @@ async function initDatabase() {
     `CREATE TABLE IF NOT EXISTS vouch_log (id INTEGER PRIMARY KEY AUTOINCREMENT, target_id TEXT, guild_id TEXT, points INTEGER, given_by TEXT, timestamp INTEGER)`,
     `CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, name TEXT, description TEXT, requirement_type TEXT, requirement_value INTEGER, reward_role_id TEXT, reward_xp INTEGER DEFAULT 0)`,
     `CREATE TABLE IF NOT EXISTS user_achievements (user_id TEXT, guild_id TEXT, achievement_id INTEGER, earned_at INTEGER, PRIMARY KEY (user_id, guild_id, achievement_id))`,
-    // UPDATED: Added allowed_roles and cooldown columns
     `CREATE TABLE IF NOT EXISTS custom_commands (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT, trigger TEXT, response TEXT, allowed_roles TEXT, cooldown INTEGER DEFAULT 0, UNIQUE(guild_id, trigger))`,
     `CREATE TABLE IF NOT EXISTS tickets (id INTEGER PRIMARY KEY AUTOINCREMENT, channel_id TEXT UNIQUE, guild_id TEXT, user_id TEXT, status TEXT DEFAULT 'open', created_at INTEGER)`,
     `CREATE TABLE IF NOT EXISTS notification_cache (id TEXT, platform TEXT, guild_id TEXT, posted_at INTEGER, PRIMARY KEY (id, platform, guild_id))`,
@@ -46,14 +44,12 @@ async function initDatabase() {
     }
   }
 
-  // 🛠️ MIGRATION: Safe column additions
   try { await db.execute("ALTER TABLE custom_commands ADD COLUMN allowed_roles TEXT"); } catch (err) {}
   try { await db.execute("ALTER TABLE custom_commands ADD COLUMN cooldown INTEGER DEFAULT 0"); } catch (err) {}
 
   console.log(chalk.green('✅ Turso database initialized'));
 }
 
-// ── Helper: get first row ────────────────────────────────────────────────────
 function first(result) { return result.rows && result.rows.length > 0 ? result.rows[0] : null; }
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -71,15 +67,27 @@ async function deleteConfig(guildId, key) {
 // ── Users / XP ───────────────────────────────────────────────────────────────
 async function bulkUpsertUserStats(statsArray) {
   if (!statsArray || statsArray.length === 0) return;
+
   for (const stat of statsArray) {
     await db.execute({
-      sql: `INSERT INTO user_stats (guild_id, user_id, xp, level, messages)
+      sql: `INSERT INTO users (user_id, guild_id, xp, level, messages)
             VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(guild_id, user_id)
-            DO UPDATE SET xp = excluded.xp, level = excluded.level, messages = excluded.messages`,
-      args: [stat.guildId, stat.userId, stat.xp, stat.level, stat.messages]
+            ON CONFLICT(user_id, guild_id)
+            DO UPDATE SET
+              xp = excluded.xp,
+              level = excluded.level,
+              messages = excluded.messages`,
+      args: [stat.userId, stat.guildId, stat.xp, stat.level, stat.messages]
     });
   }
+}
+
+async function getUserStats(userId, guildId) {
+  const result = await db.execute({
+    sql: `SELECT * FROM users WHERE user_id = ? AND guild_id = ?`,
+    args: [userId, guildId]
+  });
+  return result.rows[0];
 }
 
 async function getUser(userId, guildId) {
@@ -146,7 +154,6 @@ async function revokeUserAchievement(userId, guildId, achievementId) { await db.
 async function revokeAllUserAchievements(userId, guildId) { await db.execute({ sql: 'DELETE FROM user_achievements WHERE user_id = ? AND guild_id = ?', args: [userId, guildId] }); }
 
 // ── Custom commands ───────────────────────────────────────────────────────────
-// UPDATED: Takes 'cooldown' as the 5th argument
 async function addCustomCommand(guildId, trigger, response, roles = [], cooldown = 0) {
   const roleString = roles && roles.length > 0 ? roles.join(',') : null;
   await db.execute({
@@ -196,7 +203,7 @@ async function getCommandChannels(guildId) { const r = await db.execute({ sql: '
 module.exports = {
   initDatabase,
   getConfig, setConfig, deleteConfig,
-  getUser, ensureUser, addXP, setXP, setLevel, resetAllXP, getLeaderboard, getUserRank,
+  getUser, getUserStats, ensureUser, addXP, setXP, setLevel, resetAllXP, getLeaderboard, getUserRank,
   addWarning, getWarnings, clearWarnings, removeWarning,
   setBirthday, getBirthday, getTodayBirthdays,
   addVouch, getVouches, getVouchLeaderboard,
